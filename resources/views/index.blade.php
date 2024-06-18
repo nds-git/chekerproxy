@@ -23,7 +23,9 @@
         {{ html()->modelForm([1,2,3], 'POST', route('index.checker'))->open() }}
             {{  html()->label('Введите список ip', 'name') }}
             <br/>
-            {{  html()->textarea('body')->text('103.133.221.251:80 47.252.29.28:11222 147.28.145.213:9443 dd.km.dd:5 147.28.145.213:65536') }}
+{{--                        {{  html()->textarea('body')->text('47.252.29.28:11222') }}--}}
+        {{--                {{  html()->textarea('body')->text('147.28.145.213:9443') }}--}}
+            {{  html()->textarea('body')->text('103.133.221.251:80 147.28.145.213:9443 103.133.221.251:80 dd.km.dd:5 147.28.145.213:65536') }}
             <br/>
             {{ html()->submit('Проверить ip') }}
         {{ html()->closeModelForm() }}
