@@ -17,9 +17,13 @@ class IndexController extends Controller
     /**
      * Показать главный шаблон страницы
      */
-    public function show()
+    public function show(Request $request)
     {
-        return view('index');
+        $data = $request->query('data', null);
+
+        return !is_null($data)
+            ? view('index',  compact('data'))
+            : view('index');
     }
 
     /**
@@ -69,14 +73,19 @@ class IndexController extends Controller
         /**
          * Записать каждый ответ в таблицу Proxy
          */
+        $res = [];
         foreach ($responses as $item) {
             try {
-                if (isset($item) && !empty($item->handlerStats())) {
+                if (method_exists($item, 'handlerStats') && !empty($item->handlerStats())) {
                     $proxy = new Proxy();
 
                     $handlerStats = $item->handlerStats();
 
-                    $downloadSpeed = $handlerStats['speed_download'] ?? 'N/A';
+                    $downloadSpeed = $handlerStats['speed_download'] ?? null;
+
+                    // Дополнительно можно использовать API для определения геолокации
+                    // например, ipinfo.io или ipstack.com
+                    $geoInfo = Http::get("http://ipinfo.io/{$handlerStats['local_ip']}/json")->json();
 
                     $data = [
                         'ip' => $handlerStats['primary_ip'],
@@ -84,33 +93,28 @@ class IndexController extends Controller
                         'type' => $handlerStats['scheme'],
                         'status' => 'fail',
                         'speed' =>  $downloadSpeed . ' bytes/sec',
-                        'real_ip' => $handlerStats['local_ip'] ?? 'N/A',
+                        'real_ip' => $handlerStats['local_ip'] ?? null,
+                        'city' => !empty($geoInfo['city']) ? $geoInfo['city'] : null
                     ];
 
                     if ($item->successful()) {
-                        $data [] = ['status' => 'success'];
+                        $data['status'] = 'success';
                     }
-
-                    // Дополнительно можно использовать API для определения геолокации
-                    // например, ipinfo.io или ipstack.com
-                    $geoInfo = Http::get("http://ipinfo.io/{$handlerStats['local_ip']}/json")->json();
-                    $country = $geoInfo['country'] ?? 'N/A';
-
-                    $city = $geoInfo['city'] ?? 'N/A';
-                    // конечно лучше город и страну сделать отдельным полем в таблице
-                    $data [] = ['city' => $country . '/' . $city ];
 
                     $proxy->fill($data);
                     $proxy->save();
-
+                    // Cобрать итоговый массив объектов
+                    $res [] = $data;
                 }
             } catch (ConnectException $e) {
-                // Проксисервер недоступен, данные уже инициализированы как 'Not Working'
+                response()->json(['error' => 'Connection failed: ' . $e->getMessage()], 200);
+                continue;
             } catch (Exception $e) {
-                // Общая ошибка, данные уже инициализированы как 'Not Working'
+                response()->json(['error' => 'Connection failed: ' . $e->getMessage()], 200);
+                continue;
             }
         }
 
-        return redirect()->route('index');
+        return redirect()->route('index', ['data' => $res]);
     }
 }
